@@ -5,24 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef enum {
-    TK_RESERVED,
-    TK_NUM,
-    TK_EOF,
-} TokenKind;
-
-typedef struct Token Token;
-
-struct Token {
-    TokenKind kind;
-    Token *next;
-    int val;
-    char *str;
-};
-
-Token *token;
-char *user_input;
-
 void error(char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
@@ -42,6 +24,25 @@ void error_at(char *loc, char *fmt, ...) {
     fprintf(stderr, "\n");
     exit(1);
 }
+
+// Token
+typedef enum {
+    TK_RESERVED,
+    TK_NUM,
+    TK_EOF,
+} TokenKind;
+
+typedef struct Token Token;
+
+struct Token {
+    TokenKind kind;
+    Token *next;
+    int val;
+    char *str;
+};
+
+Token *token;
+char *user_input;
 
 bool consume(char op) {
     if (token->kind != TK_RESERVED || token->str[0] != op)
@@ -100,6 +101,8 @@ Token *tokenize(char *p) {
     return head.next;
 }
 
+// Node
+
 typedef enum {
     ND_ADD,
     ND_SUB,
@@ -133,6 +136,7 @@ Node *new_node_num(int val) {
 
 Node *expr();
 Node *mul();
+Node *unary();
 Node *primary();
 
 Node *expr() {
@@ -151,12 +155,20 @@ Node *mul() {
     Node *node = primary();
     for (;;) {
         if (consume('*'))
-            node = new_node(ND_MUL, node, primary());
+            node = new_node(ND_MUL, node, unary());
         else if (consume('/'))
-            node = new_node(ND_DIV, node, primary());
+            node = new_node(ND_DIV, node, unary());
         else
             return node;
     }
+}
+
+Node *unary() {
+    if (consume('+'))
+        return primary();
+    if (consume('-'))
+        return new_node(ND_SUB, new_node_num(0), primary());
+    return primary();
 }
 
 Node *primary() {
