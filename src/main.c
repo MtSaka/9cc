@@ -4,7 +4,7 @@ int main(int argc, char **argv) {
     if (argc != 2)
         error("%s: 引数の個数が正しくありません", argv[0]);
     Token *token = tokenize(argv[1]);
-    Node *node = parse(token);
+    Node **node = parse(token);
 
     codegen(node);
     return 0;

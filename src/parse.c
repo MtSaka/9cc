@@ -15,7 +15,10 @@ static Node *new_node_num(int val) {
     return node;
 }
 
+static Node **program(Token **, Token *);
+static Node *stmt(Token **, Token *);
 static Node *expr(Token **, Token *);
+static Node *assign(Token **, Token *);
 static Node *equality(Token **, Token *);
 static Node *relational(Token **, Token *);
 static Node *add(Token **, Token *);
@@ -23,8 +26,33 @@ static Node *mul(Token **, Token *);
 static Node *unary(Token **, Token *);
 static Node *primary(Token **, Token *);
 
+static Node **program(Token **rest, Token *tok) {
+    static Node *code[100];
+    int i = 0;
+    while (tok->kind != TK_EOF)
+        code[i++] = stmt(&tok, tok);
+    code[i] = NULL;
+    *rest = tok;
+    return code;
+}
+
+static Node *stmt(Token **rest, Token *tok) {
+    Node *node = expr(&tok, tok);
+    *rest = consume(tok, ";");
+    return node;
+}
+
 static Node *expr(Token **rest, Token *tok) {
-    return equality(rest, tok);
+    return assign(rest, tok);
+}
+
+static Node *assign(Token **rest, Token *tok) {
+    Node *node = equality(&tok, tok);
+    if (equal(tok, "=")) {
+        node = new_node(ND_ASSIGN, node, assign(&tok, tok->next));
+    }
+    *rest = tok;
+    return node;
 }
 
 static Node *equality(Token **rest, Token *tok) {
@@ -113,7 +141,14 @@ static Node *primary(Token **rest, Token *tok) {
         *rest = consume(tok, ")");
         return node;
     }
-    if(tok->kind == TK_NUM){
+    if (tok->kind == TK_IDENT) {
+        tok = tok->next;
+        Node *node = calloc(1, sizeof(Node));
+        node->kind = ND_LVAR;
+        node->offset = (tok->str[0] - 'a' + 1) * 8;
+        return node;
+    }
+    if (tok->kind == TK_NUM) {
         Node *node = new_node_num(tok->val);
         *rest = tok->next;
         return node;
@@ -121,8 +156,8 @@ static Node *primary(Token **rest, Token *tok) {
     error_at(tok->str, "数値でも開きカッコでもないトークンです");
 }
 
-Node *parse(Token *tok) {
-    Node *node = expr(&tok, tok);
+Node **parse(Token *tok) {
+    Node **node = program(&tok, tok);
     if (tok->kind != TK_EOF)
         error_at(tok->str, "余分なトークンです");
     return node;

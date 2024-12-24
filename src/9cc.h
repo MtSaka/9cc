@@ -13,6 +13,7 @@ void error_at(char *loc, char *fmt, ...);
 
 typedef enum {
     TK_RESERVED,
+    TK_IDENT,
     TK_NUM,
     TK_EOF,
 } TokenKind;
@@ -43,6 +44,8 @@ typedef enum {
     ND_NE,
     ND_LT,
     ND_LE,
+    ND_ASSIGN,
+    ND_LVAR,
 } NodeKind;
 
 typedef struct Node Node;
@@ -52,7 +55,9 @@ struct Node {
     Node *lhs;
     Node *rhs;
     int val;
+    int offset;
 };
 
-Node *parse(Token *tok);
-void codegen(Node *node);
+
+Node **parse(Token *tok);
+void codegen(Node **node);
