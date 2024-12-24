@@ -1,5 +1,6 @@
 #include "9cc.h"
 
+static int counter = 0;
 int align_to(int n, int align) {
     return (n + align - 1) / align * align;
 }
@@ -45,6 +46,37 @@ void gen(Node *node) {
         gen(node->lhs);
         printf("  pop rax\n");
         printf("  jmp .L.return\n");
+        return;
+    case ND_IF:
+        gen(node->cond);
+        printf("  pop rax\n");
+        printf("  cmp rax, 0\n");
+        int c_if = counter++;
+        printf("  je .L.else.%d\n", c_if);
+        gen(node->then);
+        printf("  jmp .L.end.%d\n", c_if);
+        printf(".L.else.%d:\n", c_if);
+        if (node->els) {
+            gen(node->els);
+        }
+        printf(".L.end.%d:\n", c_if);
+        return;
+    case ND_FOR:
+        int c_for = counter++;
+        if (node->init)
+            gen(node->init);
+        printf(".L.begin.%d:\n", c_for);
+        if (node->cond) {
+            gen(node->cond);
+            printf("  pop rax\n");
+            printf("  cmp rax, 0\n");
+            printf("  je .L.end.%d\n", c_for);
+        }
+        gen(node->then);
+        if (node->inc)
+            gen(node->inc);
+        printf("  jmp .L.begin.%d\n", c_for);
+        printf(".L.end.%d:\n", c_for);
         return;
     }
 
