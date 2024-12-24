@@ -1,5 +1,14 @@
 #include "9cc.h"
 
+LVar *locals;
+
+static LVar *find_lvar(Token *tok) {
+    for (LVar *var = locals; var; var = var->next) {
+        if (var->len == tok->len && !memcmp(tok->str, var->name, var->len))
+            return var;
+    }
+    return NULL;
+}
 static Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
     Node *node = calloc(1, sizeof(Node));
     node->kind = kind;
@@ -15,7 +24,7 @@ static Node *new_node_num(int val) {
     return node;
 }
 
-static Node **program(Token **, Token *);
+static Node *program(Token **, Token *);
 static Node *stmt(Token **, Token *);
 static Node *expr(Token **, Token *);
 static Node *assign(Token **, Token *);
@@ -26,14 +35,15 @@ static Node *mul(Token **, Token *);
 static Node *unary(Token **, Token *);
 static Node *primary(Token **, Token *);
 
-static Node **program(Token **rest, Token *tok) {
-    static Node *code[100];
-    int i = 0;
-    while (tok->kind != TK_EOF)
-        code[i++] = stmt(&tok, tok);
-    code[i] = NULL;
+static Node *program(Token **rest, Token *tok) {
+    Node *code = calloc(1, sizeof(Node));
+    Node *ret = code;
+    while (tok->kind != TK_EOF) {
+        code->next = stmt(&tok, tok);
+        code = code->next;
+    }
     *rest = tok;
-    return code;
+    return ret->next;
 }
 
 static Node *stmt(Token **rest, Token *tok) {
@@ -142,10 +152,21 @@ static Node *primary(Token **rest, Token *tok) {
         return node;
     }
     if (tok->kind == TK_IDENT) {
-        tok = tok->next;
         Node *node = calloc(1, sizeof(Node));
         node->kind = ND_LVAR;
-        node->offset = (tok->str[0] - 'a' + 1) * 8;
+        LVar *lvar = find_lvar(tok);
+        if (lvar) {
+            node->var = lvar;
+        } else {
+            lvar = calloc(1, sizeof(LVar));
+            lvar->next = locals;
+            lvar->name = tok->str;
+            lvar->len = tok->len;
+            lvar->offset = locals->offset + 8;
+            node->var = lvar;
+            locals = lvar;
+        }
+        *rest = tok->next;
         return node;
     }
     if (tok->kind == TK_NUM) {
@@ -156,9 +177,13 @@ static Node *primary(Token **rest, Token *tok) {
     error_at(tok->str, "数値でも開きカッコでもないトークンです");
 }
 
-Node **parse(Token *tok) {
-    Node **node = program(&tok, tok);
+Function *parse(Token *tok) {
+    locals = calloc(1, sizeof(LVar));
+    Node *node = program(&tok, tok);
     if (tok->kind != TK_EOF)
         error_at(tok->str, "余分なトークンです");
-    return node;
+    Function *prog = calloc(1, sizeof(Function));
+    prog->node = node;
+    prog->locals = locals;
+    return prog;
 }

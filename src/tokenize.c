@@ -22,15 +22,22 @@ void error_at(char *loc, char *fmt, ...) {
     exit(1);
 }
 
-
 // Token *token;
 bool equal(Token *tok, char *op) {
     return memcmp(tok->str, op, tok->len) == 0 && op[tok->len] == '\0';
 }
 Token *consume(Token *tok, char *op) {
-    if(!equal(tok, op))
+    if (!equal(tok, op))
         error_at(tok->str, "'%s'ではありません", op);
     return tok->next;
+}
+
+static bool is_ident1(char c) {
+    return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
+}
+
+static bool is_ident2(char c) {
+    return is_ident1(c) || ('0' <= c && c <= '9');
 }
 
 static Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
@@ -61,12 +68,19 @@ Token *tokenize(char *p) {
             p += 2;
             continue;
         }
-        if (strchr("+-*/()<>;", *p)) {
+        if (strchr("+-*/()<>;=", *p)) {
             cur = new_token(TK_RESERVED, cur, p++, 1);
             continue;
         }
-        if('a'<=*p && *p<='z'){
-            cur = new_token(TK_IDENT, cur, p++, 1);
+        if (is_ident1(*p)) {
+            int len = 1;
+            char *q = p;
+            p++;
+            while (is_ident2(*p)) {
+                len++;
+                p++;
+            }
+            cur = new_token(TK_IDENT, cur, q, len);
             continue;
         }
         if (isdigit(*p)) {

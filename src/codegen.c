@@ -1,11 +1,25 @@
 #include "9cc.h"
+
+int align_to(int n, int align) {
+    return (n + align - 1) / align * align;
+}
+
 void gen_lval(Node *node) {
     if (node->kind != ND_LVAR) {
         error("代入の左辺値が変数ではありません");
     }
     printf("  mov rax, rbp\n");
-    printf("  sub rax, %d\n", node->offset);
+    printf("  sub rax, %d\n", node->var->offset);
     printf("  push rax\n");
+}
+
+static void assign_lvar_offsets(Function *prog) {
+    int offset = 0;
+    for (LVar *var = prog->locals; var; var = var->next) {
+        offset += 8;
+        var->offset = offset;
+    }
+    prog->stack_size = align_to(offset, 16);
 }
 
 void gen(Node *node) {
@@ -72,17 +86,18 @@ void gen(Node *node) {
     printf("  push rax\n");
 }
 
-void codegen(Node **code) {
+void codegen(Function *prog) {
+    assign_lvar_offsets(prog);
     printf(".intel_syntax noprefix\n");
     printf(".global main\n");
     printf("main:\n");
 
     printf("  push rbp\n");
     printf("  mov rbp, rsp\n");
-    printf("  sub rsp, 208\n");
+    printf("  sub rsp, %d\n", prog->stack_size);
 
-    for (int i = 0; code[i]; i++) {
-        gen(code[i]);
+    for (Node *now = prog->node; now; now = now->next) {
+        gen(now);
 
         printf("  pop rax\n");
     }

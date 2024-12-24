@@ -32,6 +32,17 @@ bool equal(Token *tok, char *op);
 Token *consume(Token *tok, char *op);
 Token *tokenize(char *p);
 
+// Variable
+
+typedef struct LVar LVar;
+
+struct LVar {
+    LVar *next;
+    char *name;
+    int len;
+    int offset;
+};
+
 // Node
 
 typedef enum {
@@ -54,10 +65,20 @@ struct Node {
     NodeKind kind;
     Node *lhs;
     Node *rhs;
+    Node *next;
     int val;
-    int offset;
+    LVar *var;
 };
 
+// Function
 
-Node **parse(Token *tok);
-void codegen(Node **node);
+typedef struct Function Function;
+
+struct Function {
+    Node *node;
+    LVar *locals;
+    int stack_size;
+};
+
+Function *parse(Token *tok);
+void codegen(Function *prog);
