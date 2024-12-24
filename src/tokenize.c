@@ -52,6 +52,23 @@ static Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
 static bool startswith(char *p, char *q) {
     return memcmp(p, q, strlen(q)) == 0;
 }
+static bool is_keyword(Token *tok) {
+    static char *keywords[] = {"return", "if", "else", "while", "for"};
+    for (int i = 0; i < sizeof(keywords) / sizeof(*keywords); ++i) {
+        if (equal(tok, keywords[i])) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void convert_keywords(Token *tok) {
+    for (Token *t = tok; t; t = t->next) {
+        if (is_keyword(t)) {
+            t->kind = TK_KEYWORD;
+        }
+    }
+}
 
 Token *tokenize(char *p) {
     user_input = p;
@@ -66,11 +83,6 @@ Token *tokenize(char *p) {
         if (startswith(p, "==") || startswith(p, "!=") || startswith(p, "<=") || startswith(p, ">=")) {
             cur = new_token(TK_RESERVED, cur, p, 2);
             p += 2;
-            continue;
-        }
-        if (startswith(p, "return") && !is_alnum(p[6])) {
-            cur = new_token(TK_RETURN, cur, p, 6);
-            p += 6;
             continue;
         }
         if (strchr("+-*/()<>;=", *p)) {
@@ -98,5 +110,6 @@ Token *tokenize(char *p) {
         error_at(p, "トークナイズできません");
     }
     new_token(TK_EOF, cur, p, 0);
+    convert_keywords(head.next);
     return head.next;
 }
