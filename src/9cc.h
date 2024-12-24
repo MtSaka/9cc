@@ -72,8 +72,6 @@ struct Node {
     Node *lhs;
     Node *rhs;
 
-    Node *next;
-
     Node *cond;
     Node *then;
     Node *els;
@@ -82,6 +80,7 @@ struct Node {
 
     Node *body;
 
+    Node *next;
     int val;
 
     LVar *var;
