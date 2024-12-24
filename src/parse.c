@@ -47,7 +47,14 @@ static Node *program(Token **rest, Token *tok) {
 }
 
 static Node *stmt(Token **rest, Token *tok) {
-    Node *node = expr(&tok, tok);
+    Node *node;
+    if (tok->kind == TK_RETURN) {
+        node = calloc(1, sizeof(Node));
+        node->kind = ND_RETURN;
+        node->lhs = expr(&tok, tok->next);
+    } else {
+        node = expr(&tok, tok);
+    }
     *rest = consume(tok, ";");
     return node;
 }

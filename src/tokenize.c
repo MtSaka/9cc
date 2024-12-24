@@ -32,12 +32,12 @@ Token *consume(Token *tok, char *op) {
     return tok->next;
 }
 
-static bool is_ident1(char c) {
+static bool is_al(char c) {
     return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
 }
 
-static bool is_ident2(char c) {
-    return is_ident1(c) || ('0' <= c && c <= '9');
+static bool is_alnum(char c) {
+    return is_al(c) || ('0' <= c && c <= '9');
 }
 
 static Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
@@ -68,15 +68,20 @@ Token *tokenize(char *p) {
             p += 2;
             continue;
         }
+        if (startswith(p, "return") && !is_alnum(p[6])) {
+            cur = new_token(TK_RETURN, cur, p, 6);
+            p += 6;
+            continue;
+        }
         if (strchr("+-*/()<>;=", *p)) {
             cur = new_token(TK_RESERVED, cur, p++, 1);
             continue;
         }
-        if (is_ident1(*p)) {
+        if (is_al(*p)) {
             int len = 1;
             char *q = p;
             p++;
-            while (is_ident2(*p)) {
+            while (is_alnum(*p)) {
                 len++;
                 p++;
             }
