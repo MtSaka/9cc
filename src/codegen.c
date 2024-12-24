@@ -25,6 +25,12 @@ static void assign_lvar_offsets(Function *prog) {
 
 void gen(Node *node) {
     switch (node->kind) {
+    case ND_BLOCK:
+        for (Node *now = node->body; now; now = now->next) {
+            gen(now);
+            printf("  pop rax\n");
+        }
+        return;
     case ND_NUM:
         printf("  push %d\n", node->val);
         return;

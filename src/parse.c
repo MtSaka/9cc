@@ -45,7 +45,18 @@ static Node *program(Token **rest, Token *tok) {
     *rest = tok;
     return ret->next;
 }
-
+static Node *block_stmt(Token **rest, Token *tok) {
+    Node head = {};
+    Node *cur = &head;
+    while (!equal(tok, "}")) {
+        cur = cur->next = stmt(&tok, tok);
+    }
+    Node *node = calloc(1, sizeof(Node));
+    node->kind = ND_BLOCK;
+    node->body = head.next;
+    *rest = tok->next;
+    return node;
+}
 static Node *stmt(Token **rest, Token *tok) {
     Node *node;
     if (equal(tok, "return")) {
@@ -53,7 +64,9 @@ static Node *stmt(Token **rest, Token *tok) {
         node->kind = ND_RETURN;
         node->lhs = expr(&tok, tok->next);
         *rest = consume(tok, ";");
-    } else if (equal(tok, "if")) {
+        return node;
+    }
+    if (equal(tok, "if")) {
         node = calloc(1, sizeof(Node));
         node->kind = ND_IF;
         tok = consume(tok->next, "(");
@@ -64,14 +77,18 @@ static Node *stmt(Token **rest, Token *tok) {
             node->els = stmt(&tok, tok->next);
         }
         *rest = tok;
-    } else if (equal(tok, "while")) {
+        return node;
+    }
+    if (equal(tok, "while")) {
         node = calloc(1, sizeof(Node));
         node->kind = ND_FOR;
         tok = consume(tok->next, "(");
         node->cond = expr(&tok, tok);
         tok = consume(tok, ")");
         node->then = stmt(rest, tok);
-    } else if (equal(tok, "for")) {
+        return node;
+    }
+    if (equal(tok, "for")) {
         node = calloc(1, sizeof(Node));
         node->kind = ND_FOR;
         tok = consume(tok->next, "(");
@@ -88,10 +105,13 @@ static Node *stmt(Token **rest, Token *tok) {
         }
         tok = consume(tok, ")");
         node->then = stmt(rest, tok);
-    } else {
-        node = expr(&tok, tok);
-        *rest = consume(tok, ";");
+        return node;
     }
+    if (equal(tok, "{")) {
+        return block_stmt(rest, tok->next);
+    }
+    node = expr(&tok, tok);
+    *rest = consume(tok, ";");
     return node;
 }
 
