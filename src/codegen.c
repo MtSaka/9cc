@@ -2,6 +2,7 @@
 
 char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
+static Function *current_fn;
 static int counter = 0;
 static int align_to(int n, int align) {
     return (n + align - 1) / align * align;
@@ -12,13 +13,13 @@ void gen_lval(Node *node) {
         error("代入の左辺値が変数ではありません");
     }
     printf("  mov rax, rbp\n");
-    printf("  sub rax, %d\n", node->var->offset);
+    printf("  sub rax, %d\n", node->lvar->offset);
     printf("  push rax\n");
 }
 
 static void assign_lvar_offsets(Function *prog) {
     int offset = 0;
-    for (LVar *var = prog->locals; var; var = var->next) {
+    for (Var *var = prog->locals; var; var = var->next) {
         offset += 8;
         var->offset = offset;
     }
@@ -65,7 +66,7 @@ void gen(Node *node) {
     case ND_RETURN:
         gen(node->lhs);
         printf("  pop rax\n");
-        printf("  jmp .L.return\n");
+        printf("  jmp .L.return.%s\n", current_fn->name);
         return;
     case ND_IF:
         gen(node->cond);
@@ -144,22 +145,27 @@ void gen(Node *node) {
 }
 
 void codegen(Function *prog) {
-    assign_lvar_offsets(prog);
     printf(".intel_syntax noprefix\n");
-    printf(".global main\n");
-    printf("main:\n");
+    for (Function *fn = prog; fn; fn = fn->next) {
+        printf(".global %s\n", fn->name);
+        printf("%s:\n", fn->name);
+        assign_lvar_offsets(fn);
 
-    printf("  push rbp\n");
-    printf("  mov rbp, rsp\n");
-    printf("  sub rsp, %d\n", prog->stack_size);
+        current_fn = fn;
+        printf("  push rbp\n");
+        printf("  mov rbp, rsp\n");
+        printf("  sub rsp, %d\n", fn->stack_size);
+        int i = 0;
 
-    for (Node *now = prog->node; now; now = now->next) {
-        gen(now);
+        for (Var *var = fn->params; var; var = var->next) {
+            printf("  mov [rbp-%d], %s\n", var->offset, argreg[i++]);
+        }
 
-        printf("  pop rax\n");
+        gen(fn->node);
+
+        printf(".L.return.%s:\n", fn->name);
+        printf("  mov rsp, rbp\n");
+        printf("  pop rbp\n");
+        printf("  ret\n");
     }
-    printf(".L.return:\n");
-    printf("  mov rsp, rbp\n");
-    printf("  pop rbp\n");
-    printf("  ret\n");
 }

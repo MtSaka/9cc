@@ -1,9 +1,9 @@
 #include "9cc.h"
 
-LVar *locals;
+Var *locals;
 
-static LVar *find_lvar(Token *tok) {
-    for (LVar *var = locals; var; var = var->next) {
+static Var *find_lvar(Token *tok) {
+    for (Var *var = locals; var; var = var->next) {
         if (var->len == tok->len && !memcmp(tok->str, var->name, var->len))
             return var;
     }
@@ -24,7 +24,9 @@ static Node *new_node_num(int val) {
     return node;
 }
 
-static Node *program(Token **, Token *);
+static Function *program(Token **, Token *);
+static Function *function(Token **, Token *);
+static Node *block_stmt(Token **, Token *);
 static Node *stmt(Token **, Token *);
 static Node *expr(Token **, Token *);
 static Node *assign(Token **, Token *);
@@ -36,15 +38,46 @@ static Node *unary(Token **, Token *);
 static Node *primary(Token **, Token *);
 static Node *funcall(Token **, Token *);
 
-static Node *program(Token **rest, Token *tok) {
-    Node *code = calloc(1, sizeof(Node));
-    Node *ret = code;
+static Function *program(Token **rest, Token *tok) {
+    Function *code = calloc(1, sizeof(Node));
+    Function *ret = code;
     while (tok->kind != TK_EOF) {
-        code->next = stmt(&tok, tok);
+        locals = NULL;
+        code->next = function(&tok, tok);
         code = code->next;
     }
     *rest = tok;
     return ret->next;
+}
+static Function *function(Token **rest, Token *tok) {
+    if (tok->kind != TK_IDENT)
+        error_at(tok->str, "関数名がありません");
+    Function *node = calloc(1, sizeof(Function));
+    node->name = strndup(tok->str, tok->len);
+    tok = consume(tok->next, "(");
+    Var head = {};
+    Var *cur = &head;
+    int cnt = 0;
+    while (!equal(tok, ")")) {
+        if (cnt != 0) {
+            tok = consume(tok, ",");
+        }
+        cnt++;
+        Var *var = calloc(1, sizeof(Var));
+        var->name = tok->str;
+        var->len = tok->len;
+        cur->next = var;
+        cur = var;
+        tok = tok->next;
+    }
+    node->params = head.next;
+    locals = head.next;
+    *rest = consume(tok, ")");
+    tok = consume(tok, ")");
+    tok = consume(tok, "{");
+    node->node = block_stmt(rest, tok);
+    node->locals = locals;
+    return node;
 }
 static Node *block_stmt(Token **rest, Token *tok) {
     Node head = {};
@@ -110,6 +143,12 @@ static Node *stmt(Token **rest, Token *tok) {
     }
     if (equal(tok, "{")) {
         return block_stmt(rest, tok->next);
+    }
+    if (equal(tok, ";")) {
+        *rest = tok->next;
+        Node *node = calloc(1, sizeof(Node));
+        node->kind = ND_BLOCK;
+        return node;
     }
     node = expr(&tok, tok);
     *rest = consume(tok, ";");
@@ -221,16 +260,15 @@ static Node *primary(Token **rest, Token *tok) {
             return funcall(rest, tok);
         }
         node->kind = ND_LVAR;
-        LVar *lvar = find_lvar(tok);
+        Var *lvar = find_lvar(tok);
         if (lvar) {
-            node->var = lvar;
+            node->lvar = lvar;
         } else {
-            lvar = calloc(1, sizeof(LVar));
+            lvar = calloc(1, sizeof(Var));
             lvar->next = locals;
             lvar->name = tok->str;
             lvar->len = tok->len;
-            lvar->offset = locals->offset + 8;
-            node->var = lvar;
+            node->lvar = lvar;
             locals = lvar;
         }
         *rest = tok->next;
@@ -264,12 +302,9 @@ static Node *funcall(Token **rest, Token *tok) {
 }
 
 Function *parse(Token *tok) {
-    locals = calloc(1, sizeof(LVar));
-    Node *node = program(&tok, tok);
+    locals = calloc(1, sizeof(Var));
+    Function *node = program(&tok, tok);
     if (tok->kind != TK_EOF)
         error_at(tok->str, "余分なトークンです");
-    Function *prog = calloc(1, sizeof(Function));
-    prog->node = node;
-    prog->locals = locals;
-    return prog;
+    return node;
 }

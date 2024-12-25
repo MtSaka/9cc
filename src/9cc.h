@@ -41,10 +41,10 @@ Token *tokenize(char *p);
 
 // Variable
 
-typedef struct LVar LVar;
+typedef struct Var Var;
 
-struct LVar {
-    LVar *next;
+struct Var {
+    Var *next;
     char *name;
     int len;
     int offset;
@@ -93,7 +93,7 @@ struct Node {
     char *funcname;
     Node *args;
 
-    LVar *var;
+    Var *lvar;
 };
 
 // Function
@@ -101,8 +101,12 @@ struct Node {
 typedef struct Function Function;
 
 struct Function {
+    Function *next;
+    char *name;
+    Var *params;
+    
     Node *node;
-    LVar *locals;
+    Var *locals;
     int stack_size;
 };
 
