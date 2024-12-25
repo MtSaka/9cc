@@ -1,7 +1,9 @@
 #include "9cc.h"
 
+char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+
 static int counter = 0;
-int align_to(int n, int align) {
+static int align_to(int n, int align) {
     return (n + align - 1) / align * align;
 }
 
@@ -25,6 +27,18 @@ static void assign_lvar_offsets(Function *prog) {
 
 void gen(Node *node) {
     switch (node->kind) {
+    case ND_FUNCALL:
+        int nargs = 0;
+        for (Node *now = node->args; now; now = now->next) {
+            gen(now);
+            nargs++;
+        }
+        for (int i = nargs - 1; i >= 0; --i) {
+            printf("  pop %s\n", argreg[i]);
+        }
+        printf("  call %s\n", node->funcname);
+        printf("  push rax\n");
+        return;
     case ND_BLOCK:
         for (Node *now = node->body; now; now = now->next) {
             gen(now);

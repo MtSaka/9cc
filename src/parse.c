@@ -34,6 +34,7 @@ static Node *add(Token **, Token *);
 static Node *mul(Token **, Token *);
 static Node *unary(Token **, Token *);
 static Node *primary(Token **, Token *);
+static Node *funcall(Token **, Token *);
 
 static Node *program(Token **rest, Token *tok) {
     Node *code = calloc(1, sizeof(Node));
@@ -216,6 +217,9 @@ static Node *primary(Token **rest, Token *tok) {
     }
     if (tok->kind == TK_IDENT) {
         Node *node = calloc(1, sizeof(Node));
+        if (equal(tok->next, "(")) {
+            return funcall(rest, tok);
+        }
         node->kind = ND_LVAR;
         LVar *lvar = find_lvar(tok);
         if (lvar) {
@@ -238,6 +242,25 @@ static Node *primary(Token **rest, Token *tok) {
         return node;
     }
     error_at(tok->str, "数値でも開きカッコでもないトークンです");
+}
+
+static Node *funcall(Token **rest, Token *tok) {
+    Token *start = tok;
+    tok = tok->next->next;
+    Node head = {};
+    Node *cur = &head;
+    while (!equal(tok, ")")) {
+        if (cur != &head) {
+            tok = consume(tok, ",");
+        }
+        cur = cur->next = expr(&tok, tok);
+    }
+    *rest = consume(tok, ")");
+    Node *node = calloc(1, sizeof(Node));
+    node->kind = ND_FUNCALL;
+    node->funcname = strndup(start->str, start->len);
+    node->args = head.next;
+    return node;
 }
 
 Function *parse(Token *tok) {

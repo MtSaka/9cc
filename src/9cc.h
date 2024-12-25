@@ -1,3 +1,8 @@
+#ifdef __STDC_ALLOC_LIB__
+#define __STDC_WANT_LIB_EXT2__ 1
+#else
+#define _POSIX_C_SOURCE 200809L
+#endif
 #include <assert.h>
 #include <ctype.h>
 #include <stdarg.h>
@@ -63,6 +68,7 @@ typedef enum {
     ND_FOR,
     ND_RETURN,
     ND_BLOCK,
+    ND_FUNCALL,
 } NodeKind;
 
 typedef struct Node Node;
@@ -83,6 +89,9 @@ struct Node {
     Node *body;
 
     int val;
+
+    char *funcname;
+    Node *args;
 
     LVar *var;
 };
