@@ -69,6 +69,7 @@ typedef enum {
     ND_RETURN,
     ND_BLOCK,
     ND_FUNCALL,
+    ND_EXPR_STMT,
 } NodeKind;
 
 typedef struct Node Node;
@@ -104,7 +105,7 @@ struct Function {
     Function *next;
     char *name;
     Var *params;
-    
+
     Node *node;
     Var *locals;
     int stack_size;

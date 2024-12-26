@@ -150,7 +150,9 @@ static Node *stmt(Token **rest, Token *tok) {
         node->kind = ND_BLOCK;
         return node;
     }
-    node = expr(&tok, tok);
+    node = calloc(1, sizeof(Node));
+    node->kind = ND_EXPR_STMT;
+    node->lhs = expr(&tok, tok);
     *rest = consume(tok, ";");
     return node;
 }

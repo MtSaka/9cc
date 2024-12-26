@@ -1,6 +1,6 @@
 #include "9cc.h"
 
-char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+static char *argreg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
 static Function *current_fn;
 static int counter = 0;
@@ -8,7 +8,7 @@ static int align_to(int n, int align) {
     return (n + align - 1) / align * align;
 }
 
-void gen_lval(Node *node) {
+static void gen_lval(Node *node) {
     if (node->kind != ND_LVAR) {
         error("代入の左辺値が変数ではありません");
     }
@@ -26,12 +26,12 @@ static void assign_lvar_offsets(Function *prog) {
     prog->stack_size = align_to(offset, 16);
 }
 
-void gen(Node *node) {
+static void gen_expr(Node *node) {
     switch (node->kind) {
     case ND_FUNCALL:
         int nargs = 0;
         for (Node *now = node->args; now; now = now->next) {
-            gen(now);
+            gen_expr(now);
             nargs++;
         }
         for (int i = nargs - 1; i >= 0; --i) {
@@ -39,12 +39,6 @@ void gen(Node *node) {
         }
         printf("  call %s\n", node->funcname);
         printf("  push rax\n");
-        return;
-    case ND_BLOCK:
-        for (Node *now = node->body; now; now = now->next) {
-            gen(now);
-            printf("  pop rax\n");
-        }
         return;
     case ND_NUM:
         printf("  push %d\n", node->val);
@@ -57,52 +51,16 @@ void gen(Node *node) {
         return;
     case ND_ASSIGN:
         gen_lval(node->lhs);
-        gen(node->rhs);
+        gen_expr(node->rhs);
         printf("  pop rdi\n");
         printf("  pop rax\n");
         printf("  mov [rax], rdi\n");
         printf("  push rdi\n");
         return;
-    case ND_RETURN:
-        gen(node->lhs);
-        printf("  pop rax\n");
-        printf("  jmp .L.return.%s\n", current_fn->name);
-        return;
-    case ND_IF:
-        gen(node->cond);
-        printf("  pop rax\n");
-        printf("  cmp rax, 0\n");
-        int c_if = counter++;
-        printf("  je .L.else.%d\n", c_if);
-        gen(node->then);
-        printf("  jmp .L.end.%d\n", c_if);
-        printf(".L.else.%d:\n", c_if);
-        if (node->els) {
-            gen(node->els);
-        }
-        printf(".L.end.%d:\n", c_if);
-        return;
-    case ND_FOR:
-        int c_for = counter++;
-        if (node->init)
-            gen(node->init);
-        printf(".L.begin.%d:\n", c_for);
-        if (node->cond) {
-            gen(node->cond);
-            printf("  pop rax\n");
-            printf("  cmp rax, 0\n");
-            printf("  je .L.end.%d\n", c_for);
-        }
-        gen(node->then);
-        if (node->inc)
-            gen(node->inc);
-        printf("  jmp .L.begin.%d\n", c_for);
-        printf(".L.end.%d:\n", c_for);
-        return;
     }
 
-    gen(node->lhs);
-    gen(node->rhs);
+    gen_expr(node->lhs);
+    gen_expr(node->rhs);
     printf("  pop rdi\n");
     printf("  pop rax\n");
 
@@ -144,6 +102,55 @@ void gen(Node *node) {
     printf("  push rax\n");
 }
 
+static void gen_stmt(Node *node) {
+    switch (node->kind) {
+    case ND_BLOCK:
+        for (Node *now = node->body; now; now = now->next) {
+            gen_stmt(now);
+        }
+        return;
+    case ND_RETURN:
+        gen_expr(node->lhs);
+        printf("  pop rax\n");
+        printf("  jmp .L.return.%s\n", current_fn->name);
+        return;
+    case ND_IF:
+        gen_expr(node->cond);
+        printf("  pop rax\n");
+        printf("  cmp rax, 0\n");
+        int c_if = counter++;
+        printf("  je .L.else.%d\n", c_if);
+        gen_stmt(node->then);
+        printf("  jmp .L.end.%d\n", c_if);
+        printf(".L.else.%d:\n", c_if);
+        if (node->els) {
+            gen_stmt(node->els);
+        }
+        printf(".L.end.%d:\n", c_if);
+        return;
+    case ND_FOR:
+        int c_for = counter++;
+        if (node->init)
+            gen_stmt(node->init);
+        printf(".L.begin.%d:\n", c_for);
+        if (node->cond) {
+            gen_expr(node->cond);
+            printf("  pop rax\n");
+            printf("  cmp rax, 0\n");
+            printf("  je .L.end.%d\n", c_for);
+        }
+        gen_stmt(node->then);
+        if (node->inc)
+            gen_expr(node->inc);
+        printf("  jmp .L.begin.%d\n", c_for);
+        printf(".L.end.%d:\n", c_for);
+        return;
+    case ND_EXPR_STMT:
+        gen_expr(node->lhs);
+        return;
+    }
+}
+
 void codegen(Function *prog) {
     printf(".intel_syntax noprefix\n");
     for (Function *fn = prog; fn; fn = fn->next) {
@@ -161,7 +168,7 @@ void codegen(Function *prog) {
             printf("  mov [rbp-%d], %s\n", var->offset, argreg[i++]);
         }
 
-        gen(fn->node);
+        gen_stmt(fn->node);
 
         printf(".L.return.%s:\n", fn->name);
         printf("  mov rsp, rbp\n");
