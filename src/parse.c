@@ -59,7 +59,7 @@ static Function *function(Token **rest, Token *tok) {
     Var *cur = &head;
     int cnt = 0;
     while (!equal(tok, ")")) {
-        if (cnt != 0) {
+        if (cur != &head) {
             tok = consume(tok, ",");
         }
         cnt++;
@@ -247,6 +247,10 @@ static Node *unary(Token **rest, Token *tok) {
         return unary(rest, tok->next);
     if (equal(tok, "-"))
         return new_node(ND_SUB, new_node_num(0), unary(rest, tok->next));
+    if (equal(tok, "&"))
+        return new_node(ND_ADDR, unary(rest, tok->next), NULL);
+    if (equal(tok, "*"))
+        return new_node(ND_DEREF, unary(rest, tok->next), NULL);
     return primary(rest, tok);
 }
 
@@ -304,7 +308,6 @@ static Node *funcall(Token **rest, Token *tok) {
 }
 
 Function *parse(Token *tok) {
-    locals = calloc(1, sizeof(Var));
     Function *node = program(&tok, tok);
     if (tok->kind != TK_EOF)
         error_at(tok->str, "余分なトークンです");

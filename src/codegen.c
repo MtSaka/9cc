@@ -17,12 +17,20 @@ static void gen_lval(Node *node) {
     printf("  push rax\n");
 }
 
-static void assign_lvar_offsets(Function *prog) {
-    int offset = 0;
-    for (Var *var = prog->locals; var; var = var->next) {
-        offset += 8;
-        var->offset = offset;
+static int offset_of(Var *var) {
+    if (!var)
+        return 0;
+    if (var->next) {
+        var->offset = offset_of(var->next) + 8;
+    } else {
+        var->offset = 8;
     }
+    // fprintf(stderr, "%s: %d\n", var->name, var->offset);
+    return var->offset;
+}
+
+static void assign_lvar_offsets(Function *prog) {
+    int offset = offset_of(prog->locals);
     prog->stack_size = align_to(offset, 16);
 }
 
@@ -56,6 +64,15 @@ static void gen_expr(Node *node) {
         printf("  pop rax\n");
         printf("  mov [rax], rdi\n");
         printf("  push rdi\n");
+        return;
+    case ND_ADDR:
+        gen_lval(node->lhs);
+        return;
+    case ND_DEREF:
+        gen_expr(node->lhs);
+        printf("  pop rax\n");
+        printf("  mov rax, [rax]\n");
+        printf("  push rax\n");
         return;
     }
 

@@ -70,6 +70,8 @@ typedef enum {
     ND_BLOCK,
     ND_FUNCALL,
     ND_EXPR_STMT,
+    ND_ADDR,
+    ND_DEREF,
 } NodeKind;
 
 typedef struct Node Node;

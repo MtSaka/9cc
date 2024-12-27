@@ -100,7 +100,17 @@ assert 32 'main() { return ret32(); } ret32() { return 32; }'
 assert 7 'main() { return add2(3,4); } add2(x,  y) { return x+y; }'
 assert 1 'main() { return sub2(4,3); } sub2(x, y) { return x-y; }'
 assert 89 'main() { return fib(10); } fib(x) { if (x<=1) return 1; return fib(x-1) + fib(x-2); }'
+assert 144 'main() { return fib(10); } fib(x) { if (x==0) return 1; else if(x==1) return 2; return fib(x-1) + fib(x-2); }'
 assert 18 'f(x,y){ return x*y; } main(){ return f(3,6); }'
 assert 10 'f(x){ if(x==0)return 0; y=x-1; return x + f(y); } main(){ return f(4);}'
+
+
+assert 3 'main() { x=3; return *&x; }'
+assert 5 'main() { x=3; y=5; return *(&x-8); }'
+assert 3 'main() { x=3; y=5; return *(&y+8); }'
+assert 5 'main() { x=3; y=5; return *(&x-8); }'
+assert 5 'main() { x=3; return (&x+2)-&x+3; }'
+assert 8 'main() { x; y; x=3; y=5; return x+y; }'
+assert 8 'main() { x=3; y=5; return x+y; }'
 
 echo OK
